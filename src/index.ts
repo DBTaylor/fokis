@@ -1,3 +1,4 @@
+import{bindActions, BoundActions, UnboundActions} from './actions'
 
 type Focus =
     | {kind: "prop", name: string}
@@ -5,41 +6,46 @@ type Focus =
     | {kind: "option"}
     | {kind: "disc", name: string}
 
-class View<T>{
+class View<T, A>{
     data: any
     events: any
     lens: Focus[]
+    actions: A
     constructor(data: T, clone?: boolean, events?: any, lens?: Focus[]){
         this.data = clone ? data : [data]
         this.events = events ? events : {subscribers: [], children: {}}
         this.lens = lens ? lens : []
+        this.actions = {} as any as A
+        this.modify = this.modify.bind(this)
+        this.get = this.get.bind(this)
+        this.mget = this.mget.bind(this)
     }
 
-    prop<U extends keyof T & string>(prop: U): View<T[U]>{
-        return _prop(prop)(this) as View<T[U]>
+    prop<U extends keyof T & string>(prop: U): View<T[U], A>{
+        return _prop(prop)(this as any) as View<T[U], A>
     }
 
-    option(): View<NarrowOption<T>>{
-        return _option(this) as View<NarrowOption<T>>
+    option(): View<NarrowOption<T>, A>{
+        return _option(this as any) as View<NarrowOption<T>, A>
     }
 
-    disc<U extends T[keyof T & "kind"] & string >(disc: U): View<Narrow<T, U>>{
-        return _disc(disc)(this as any) as View<Narrow<T, U>>
+    disc<U extends T[keyof T & "kind"] & string >(disc: U): View<Narrow<T, U>, A>{
+        return _disc(disc)(this as any) as View<Narrow<T, U>, A>
     }
 
-    index<U extends T[keyof T & number]>(value: number): View<U>{
-        return _index(value)(this as any) as View<U>
+    index<U extends T[keyof T & number]>(value: number): View<U, A>{
+        return _index(value)(this as any) as View<U, A>
     }
 
-    get(){
+    get(): T{
         return _get(this)
     }
 
-    mget(){
+    mget(): T | null{
         return _mget(this)
     }
 
-    modify(f: (s: T) => T){
+    modify(f: (s: T) => T): void{
         return _modify(this, f)
     }
 
@@ -50,14 +56,19 @@ class View<T>{
     unsubscribe(f: (s: T) => unknown){
         _unsubscribe(this, f)
     }
+
+    bindActions<B>(actions: UnboundActions<T> & B){
+        Object.assign(this.actions, bindActions(this.modify, actions))
+        return this as View<T, BoundActions<B>>
+    }
 }
 
-type UnknownView<U> = [unknown] extends [U] ? unknown : [U] extends [never] ? unknown : View<U>;
+type UnknownView<U, A> = [unknown] extends [U] ? unknown : [U] extends [never] ? unknown : View<U, A>;
 type Narrow<T, N> = T extends { kind: N } ? T : never;
 type NarrowOption<T> = T extends null ? never : T extends undefined ? never : T
 
 var propMap = new WeakMap()
-const _prop = <T extends string>(prop: T) => <U>(view: View<{[P in T]: U}>) => {
+const _prop = <T extends string>(prop: T) => <U, A>(view: View<{[P in T]: U}, A>) => {
     var cached = propMap.get(view)
     if(cached === undefined){
         cached = {}
@@ -66,7 +77,7 @@ const _prop = <T extends string>(prop: T) => <U>(view: View<{[P in T]: U}>) => {
     else{
         var cached2 = cached[prop]
         if(cached2)
-            return cached2 as UnknownView<U>
+            return cached2 as UnknownView<U, A>
     }
     let events = narrow(view.events, view.lens)
     if (events.children[prop] === undefined)
@@ -76,28 +87,28 @@ const _prop = <T extends string>(prop: T) => <U>(view: View<{[P in T]: U}>) => {
         true,
         view.events,
         view.lens.concat({kind: "prop", name: prop})
-    ) as UnknownView<U>
+    ) as UnknownView<U, A>
     cached[prop] = newView
     return newView 
 }
 
 var optionMap = new WeakMap()
-const _option = <T>(view: View<T | null | undefined>) => {
+const _option = <T, A>(view: View<T | null | undefined, A>) => {
     var cached = optionMap.get(view)
     if(cached){
-        return cached as View<T>
+        return cached as View<T, A>
     }
     let newView = new View(
         view.data,
         true,
         view.events,
         view.lens.concat({kind: "option"})
-     ) as View<T>
+     ) as View<T, A>
     optionMap.set(view, newView)
     return newView 
 }
 
-const _disc = <T extends string>(disc: T) => <V>(view: View<V & {kind: T}>) => {
+const _disc = <T extends string>(disc: T) => <V, A>(view: View<V & {kind: T}, A>) => {
     var cached = propMap.get(view)
     if(cached === undefined){
         cached = {}
@@ -106,7 +117,7 @@ const _disc = <T extends string>(disc: T) => <V>(view: View<V & {kind: T}>) => {
     else{
         var cached2 = cached[disc]
         if(cached2)
-            return cached2 as UnknownView<Narrow<V, T>>
+            return cached2 as UnknownView<Narrow<V, T>, A>
     }
     let events = narrow(view.events, view.lens)
     if (events.children[disc] === undefined)
@@ -116,13 +127,13 @@ const _disc = <T extends string>(disc: T) => <V>(view: View<V & {kind: T}>) => {
         true,
         view.events,
         view.lens.concat({kind: "disc", name: disc})
-     ) as UnknownView<Narrow<V, T>>
+     ) as UnknownView<Narrow<V, T>, A>
     cached[disc] = newView
     return newView 
 }
 
 var indexMap = new WeakMap()
-const _index = (index: number) => <T>(view: View<T[]>) => {
+const _index = (index: number) => <T, A>(view: View<T[], A>) => {
     var cached = propMap.get(view)
     if(cached === undefined){
         cached = {}
@@ -131,7 +142,7 @@ const _index = (index: number) => <T>(view: View<T[]>) => {
     else{
         var cached2 = cached[index]
         if(cached2)
-            return cached2 as UnknownView<T>
+            return cached2 as UnknownView<T, A>
     }
     let events = narrow(view.events, view.lens)
     if (events.children[index] === undefined)
@@ -141,7 +152,7 @@ const _index = (index: number) => <T>(view: View<T[]>) => {
         true,
         view.events,
         view.lens.concat({kind: "index", value: index})
-     ) as UnknownView<T>
+     ) as UnknownView<T, A>
     cached[index] = newView
     return newView 
 }
@@ -157,7 +168,7 @@ const narrow = (obj: any, lens: Focus[]) => {
     return temp as {subscribers: any[], children: any}
 }
 
-const _get = <T>(view: View<T>) => {
+const _get = <T, A>(view: View<T, A>) => {
     var temp = view.data[0]
     view.lens.forEach(f => {
         if(f.kind == "prop")
@@ -168,7 +179,7 @@ const _get = <T>(view: View<T>) => {
     return temp as T
 }
 
-const _mget = <T>(view: View<T>) => {
+const _mget = <T, A>(view: View<T, A>) => {
     var temp = view.data[0]
     for(var i = 0; i < view.lens.length; i++){
         const f = view.lens[i]
@@ -193,7 +204,7 @@ const __modify = <T>(obj: any, lens: Focus[], i: number, fn: (s: any) => any ): 
     while(true){
         if(i >= lens.length){
             const newObj = fn(obj)
-            return [fn(obj), obj !== newObj]
+            return [newObj, obj !== newObj]
         }
         else{
             const f = lens[i]
@@ -221,7 +232,7 @@ const __modify = <T>(obj: any, lens: Focus[], i: number, fn: (s: any) => any ): 
     }
 } 
 
-const _modify = <T>(view: View<T>, f: (s: T) => T) => {
+const _modify = <T, A>(view: View<T, A>, f: (s: T) => T) => {
     const [newObj, changed] = __modify(view.data[0], view.lens, 0, f)
     if(changed){
         view.data[0] = newObj
@@ -246,11 +257,11 @@ const _modify = <T>(view: View<T>, f: (s: T) => T) => {
     }
 }
 
-const _subscribe = <T>(view: View<T>, f: (s: T) => unknown) =>{
+const _subscribe = <T, A>(view: View<T, A>, f: (s: T) => unknown) =>{
     narrow(view.events, view.lens).subscribers.push(f)
 }
 
-const _unsubscribe = <T>(view: View<T>, f: (s: T) => unknown) =>{
+const _unsubscribe = <T, A>(view: View<T, A>, f: (s: T) => unknown) =>{
     var subs = narrow(view.events, view.lens).subscribers
     subs.splice(subs.findIndex(fn => fn == f))
 }
@@ -262,9 +273,10 @@ const abc = view.prop("abc")
 abc.subscribe(x => console.log(x))
 const g = abc
 const d54 = view.prop("abc").disc("54")
-const def = view.prop("abc").disc("def").prop("def").index(1)
+const def = view.prop("abc").disc("def").prop("def").index(1).bindActions({incr: () => (n: number) => {console.log("incr n:", n); return n + 1}})
 def.subscribe(n => console.log(n))
 def.modify(n => n + 1)
+def.actions.incr()
 const a = _prop("def")
 const b = d54.prop("dedf").option()
 
