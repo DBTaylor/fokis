@@ -1,14 +1,21 @@
 {
-  "name": "focus",
+  "name": "fokis",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "jest"
   },
   "author": "",
-  "license": "ISC",
-  "dependencies": {
-    "@types/node": "^14.0.27"
+  "license": "MIT",
+  "dependencies": {},
+  "devDependencies": {
+    "@babel/core": "^7.11.1",
+    "@babel/preset-env": "^7.11.0",
+    "@babel/preset-typescript": "^7.10.4",
+    "@types/jest": "^26.0.9",
+    "@types/node": "^14.0.27",
+    "babel-jest": "^26.2.2",
+    "jest": "^26.2.2"
   }
 }
