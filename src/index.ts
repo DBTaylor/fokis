@@ -7,7 +7,7 @@ type Focus =
 
 type Narrow<T, N> = T extends { kind: N } ? T : never;
 type NarrowOption<T> = T extends null ? never : T extends undefined ? never : T
-type Events = {subscribers: any[], children: any}
+type Events = {subscribers: any[], children: any, discriminants: any}
 type Match<T, U> = [T] extends [{kind: string}] ? {[P in T["kind"]]: (v: View<T & {kind: P}>) => U} : never
 type MapFn<T, U> = [keyof T & number] extends [never] ? never : (v: View<T[keyof T & number]>) => U
 
@@ -17,12 +17,12 @@ export class View<T>{
     lens: Focus[]
     constructor(data: T, clone?: boolean, events?: any, lens?: Focus[]){
         this.data = clone ? data : [data]
-        this.events = events ? events : {subscribers: [], children: {}}
+        this.events = events ? events : {subscribers: [], children: {}, discriminants: {}}
         this.lens = lens ? lens : []
     }
 
     prop<U extends keyof T & (string | number)>(prop: U): View<T[U]>{
-        return _prop(prop)(this)
+        return _prop(prop)(this as any)
     }
 
     option(): View<NarrowOption<T>>{
@@ -55,11 +55,11 @@ export class View<T>{
         )
     }
 
-    get(){
+    get(): T{
         return _get(this)
     }
 
-    maybeGet(){
+    maybeGet(): {success: T} | null{
         return _maybeGet(this)
     }
 
@@ -79,10 +79,12 @@ export class View<T>{
 const narrowEvents = (events: Events, lens: Focus[]) => {
     let temp: Events = events;
     lens.forEach(f => {
-        if(f.kind === "prop" || f.kind === "disc")
+        if(f.kind === "prop")
             temp = temp.children[f.name]
         else if(f.kind === "index")
             temp = temp.children[f.value]
+        else if(f.kind === "disc")
+            temp = temp.discriminants[f.name]
     })
     return temp
 }
@@ -101,7 +103,7 @@ const _prop = <T extends string | number>(prop: T) => <U>(view: View<{[P in T]: 
     }
     const events = narrowEvents(view.events, view.lens)
     if(events.children[prop] === undefined)
-        events.children[prop] = {subscribers: [], children: {}}
+        events.children[prop] = {subscribers: [], children: {}, discriminants: {}}
     const newView: View<U> = new View(
         view.data,
         true,
@@ -128,11 +130,12 @@ const _option = <T>(view: View<T>) => {
     return newView
 }
 
+const discMap = new WeakMap()
 const _disc = <T extends string>(disc: T) => <V>(view: View<V & {kind: T}>) => {
-    let cached = propMap.get(view)
+    let cached = discMap.get(view)
     if(cached === undefined){
         cached = {}
-        propMap.set(view, cached)
+        discMap.set(view, cached)
     }
     else{
         const cached2 = cached[disc]
@@ -140,8 +143,8 @@ const _disc = <T extends string>(disc: T) => <V>(view: View<V & {kind: T}>) => {
             return cached2 as View<Narrow<V, T>>
     }
     const events = narrowEvents(view.events, view.lens)
-    if(events.children[disc] === undefined)
-        events.children[disc] = {subscribers: [], children: {}}
+    if(events.discriminants[disc] === undefined)
+        events.discriminants[disc] = {subscribers: [], children: {}, discriminants: {}}
     const newView: View<Narrow<V, T>> = new View(
         view.data,
         true,
@@ -166,7 +169,7 @@ const _index = (index: number) => <T>(view: View<T>) => {
     }
     const events = narrowEvents(view.events, view.lens)
     if(events.children[index] === undefined)
-        events.children[index] = {subscribers: [], children: {}}
+        events.children[index] = {subscribers: [], children: {}, discriminants: {}}
     const newView: View<T[keyof T & number]> = new View(
         view.data,
         true,
@@ -205,7 +208,7 @@ const _maybeGet = <T>(view: View<T>) => {
             }
         }
     }
-    return temp as T | null
+    return {success: temp} as {success: T} | null
 }
 
 const _rmodify = <T>(obj: any, lens: Focus[], i: number, fn: (s: any) => any ): any =>{
@@ -249,10 +252,7 @@ const _modify = <T>(view: View<T>, fn: (s: T) => T) => {
         let obj = view.data[0]
         events.subscribers.forEach((s: any) => s(obj))
         view.lens.forEach(f => {
-            if(f.kind === "disc"){
-                events = events.children[f.name]
-            }
-            else if(f.kind === "prop"){
+            if(f.kind === "prop"){
                 events = events.children[f.name]
                 obj = obj[f.name]
                 events.subscribers.forEach((s: any) => s(obj))
@@ -262,8 +262,13 @@ const _modify = <T>(view: View<T>, fn: (s: T) => T) => {
                 obj = obj[f.value]
                 events.subscribers.forEach((s: any) => s(obj))
             }
+            else if(f.kind === "disc"){
+                events = events.discriminants[f.name]
+                events.subscribers.forEach((s: any) => s(obj))
+            }
         })
-        notify(narrowEvents(view.events, view.lens), old, newObj)
+        if(obj !== undefined && obj !== null)
+            notify(narrowEvents(view.events, view.lens), old, obj)
     }
 }
 
@@ -271,11 +276,16 @@ const notify = (events: Events, old: any, nw: any) =>{
     for(const key of Object.keys(events.children)){
         const cold = old[key]
         const cnew = nw[key]
-        if(cnew !== undefined && cnew !== cold){
+        if(cnew !== undefined && cnew !== null && cnew !== cold){
             const cevents = events.children[key]
             cevents.subscribers.forEach((s: any) => s(cnew))
             notify(cevents, cold, cnew)
         }
+    }
+    for(const key of Object.keys(events.discriminants)){
+        const cevents = events.discriminants[key]
+        if(nw.kind === key)
+            notify(cevents, old, nw)
     }
 }
 
