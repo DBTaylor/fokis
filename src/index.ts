@@ -19,6 +19,18 @@ export class View<T>{
         this.data = clone ? data : [data]
         this.events = events ? events : {subscribers: [], children: {}, discriminants: {}}
         this.lens = lens ? lens : []
+        this.prop = this.prop.bind(this)
+        this.option = this.option.bind(this)
+        this.if = this.if.bind(this)
+        this.disc = this.disc.bind(this)
+        this.match = this.match.bind(this)
+        this.index = this.index.bind(this)
+        this.map = this.map.bind(this)
+        this.get = this.get.bind(this)
+        this.maybeGet = this.maybeGet.bind(this)
+        this.modify = this.modify.bind(this)
+        this.subscribe = this.subscribe.bind(this)
+        this.unsubscribe = this.unsubscribe.bind(this)
     }
 
     prop<U extends keyof T & (string | number)>(prop: U): View<T[U]>{
@@ -64,7 +76,7 @@ export class View<T>{
     }
 
     modify(f: (s: T) => T){
-        return _modify(this, f)
+        _modify(this, f)
     }
 
     subscribe(f: (s: T) => unknown){
@@ -216,7 +228,7 @@ const _rmodify = <T>(obj: any, lens: Focus[], i: number, fn: (s: any) => any ): 
         if(i >= lens.length){
             const old = obj
             const newObj = fn(obj)
-            return [fn(obj), obj !== newObj, old]
+            return [newObj, obj !== newObj, old]
         }
         else{
             const f = lens[i]

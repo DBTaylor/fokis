@@ -143,3 +143,20 @@ type Data = {object: {kind: "array", array: number[]} | {kind: "tuple", tuple: [
     tu.modify(_ => ({kind: "string", value: "abc"}))
     test('Test discriminant subscribes', () => expect([x, y, z]).toStrictEqual(["abc", 2, "abc"]))
 }
+{
+    type Test = {tu: {kind: "number", value: number} | {kind: "string", value: string}}
+    const view: View<Test> = new View({tu: {kind: "number", value: 2}})
+    const tu = view.prop("tu")
+    const str = tu.disc("string").prop("value")
+    const num = tu.disc("number").prop("value")
+    const either = tu.prop("value")
+    let x = str.maybeGet()?.success
+    let y = num.get()
+    let z = either.get()
+    str.subscribe(v => x = v)
+    num.subscribe(v => y = v)
+    either.subscribe(v => z = v)
+    const m = tu.modify
+    m(_ => ({kind: "string", value: "abc"}))
+    test('Test bind', () => expect([x, y, z]).toStrictEqual(["abc", 2, "abc"]))
+}

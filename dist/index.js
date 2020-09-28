@@ -23,6 +23,18 @@ var View = /** @class */ (function () {
         this.data = clone ? data : [data];
         this.events = events ? events : { subscribers: [], children: {}, discriminants: {} };
         this.lens = lens ? lens : [];
+        this.prop = this.prop.bind(this);
+        this.option = this.option.bind(this);
+        this.if = this.if.bind(this);
+        this.disc = this.disc.bind(this);
+        this.match = this.match.bind(this);
+        this.index = this.index.bind(this);
+        this.map = this.map.bind(this);
+        this.get = this.get.bind(this);
+        this.maybeGet = this.maybeGet.bind(this);
+        this.modify = this.modify.bind(this);
+        this.subscribe = this.subscribe.bind(this);
+        this.unsubscribe = this.unsubscribe.bind(this);
     }
     View.prototype.prop = function (prop) {
         return _prop(prop)(this);
@@ -59,7 +71,7 @@ var View = /** @class */ (function () {
         return _maybeGet(this);
     };
     View.prototype.modify = function (f) {
-        return _modify(this, f);
+        _modify(this, f);
     };
     View.prototype.subscribe = function (f) {
         _subscribe(this, f);
