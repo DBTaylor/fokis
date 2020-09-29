@@ -197,7 +197,7 @@ var _rmodify = function (obj, lens, i, fn) {
         if (i >= lens.length) {
             var old = obj;
             var newObj = fn(obj);
-            return [fn(obj), obj !== newObj, old];
+            return [newObj, obj !== newObj, old];
         }
         else {
             var f = lens[i];

@@ -60,7 +60,7 @@ type Data = {object: {kind: "array", array: number[]} | {kind: "tuple", tuple: [
         v.get()
     )
 
-    test('Test if', () => expect(option).toBe(null))
+    test('Test if', () => expect(option).toBe(undefined))
 }
 {
     const view: View<Data> = new View({object: {kind: "array", array: [5]}})
