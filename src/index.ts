@@ -307,5 +307,5 @@ const _subscribe = <T>(view: View<T>, f: (s: T) => unknown) =>{
 
 const _unsubscribe = <T>(view: View<T>, f: (s: T) => unknown) =>{
     const subs = narrowEvents(view.events, view.lens).subscribers
-    subs.splice(subs.findIndex(fn => fn === f))
+    subs.splice(subs.findIndex(fn => fn === f), 1)
 }

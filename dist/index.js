@@ -44,8 +44,8 @@ var View = /** @class */ (function () {
     };
     View.prototype.if = function (f) {
         var value = this.get();
-        if (value === undefined || value === null)
-            return null;
+        if (value === undefined)
+            return undefined;
         else
             return f(this.option());
     };
@@ -180,12 +180,12 @@ var _maybeGet = function (view) {
         else if (f.kind === "index")
             temp = temp[f.value];
         else if (f.kind === "option") {
-            if (temp === null || temp === undefined)
-                return null;
+            if (temp === undefined)
+                return undefined;
         }
         else {
             if (f.name !== temp.kind) {
-                return null;
+                return undefined;
             }
         }
     }
@@ -214,7 +214,7 @@ var _rmodify = function (obj, lens, i, fn) {
                     return [obj, false];
             }
             else if (f.kind === "option") {
-                if (obj === null || obj === undefined)
+                if (obj === undefined)
                     return [obj, false];
             }
             else {
@@ -248,7 +248,7 @@ var _modify = function (view, fn) {
                 events_1.subscribers.forEach(function (s) { return s(obj_1); });
             }
         });
-        if (obj_1 !== undefined && obj_1 !== null)
+        if (obj_1 !== undefined)
             notify(narrowEvents(view.events, view.lens), old, obj_1);
     }
 };
@@ -256,7 +256,7 @@ var notify = function (events, old, nw) {
     var _loop_1 = function (key) {
         var cold = old[key];
         var cnew = nw[key];
-        if (cnew !== undefined && cnew !== null && cnew !== cold) {
+        if (cnew !== undefined && cnew !== cold) {
             var cevents = events.children[key];
             cevents.subscribers.forEach(function (s) { return s(cnew); });
             notify(cevents, cold, cnew);
