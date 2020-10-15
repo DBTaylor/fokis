@@ -44,8 +44,8 @@ var View = /** @class */ (function () {
     };
     View.prototype.if = function (f) {
         var value = this.get();
-        if (value === undefined)
-            return undefined;
+        if (value === null)
+            return null;
         else
             return f(this.option());
     };
@@ -180,12 +180,12 @@ var _maybeGet = function (view) {
         else if (f.kind === "index")
             temp = temp[f.value];
         else if (f.kind === "option") {
-            if (temp === undefined)
-                return undefined;
+            if (temp === null)
+                return null;
         }
         else {
             if (f.name !== temp.kind) {
-                return undefined;
+                return null;
             }
         }
     }
@@ -214,7 +214,7 @@ var _rmodify = function (obj, lens, i, fn) {
                     return [obj, false];
             }
             else if (f.kind === "option") {
-                if (obj === undefined)
+                if (obj === null)
                     return [obj, false];
             }
             else {
@@ -254,12 +254,14 @@ var _modify = function (view, fn) {
 };
 var notify = function (events, old, nw) {
     var _loop_1 = function (key) {
-        var cold = old[key];
-        var cnew = nw[key];
-        if (cnew !== undefined && cnew !== cold) {
-            var cevents = events.children[key];
-            cevents.subscribers.forEach(function (s) { return s(cnew); });
-            notify(cevents, cold, cnew);
+        if (old && nw) {
+            var cold = old[key];
+            var cnew_1 = nw[key];
+            if (cnew_1 !== undefined && cnew_1 !== cold) {
+                var cevents = events.children[key];
+                cevents.subscribers.forEach(function (s) { return s(cnew_1); });
+                notify(cevents, cold, cnew_1);
+            }
         }
     };
     for (var _i = 0, _a = Object.keys(events.children); _i < _a.length; _i++) {
@@ -278,5 +280,5 @@ var _subscribe = function (view, f) {
 };
 var _unsubscribe = function (view, f) {
     var subs = narrowEvents(view.events, view.lens).subscribers;
-    subs.splice(subs.findIndex(function (fn) { return fn === f; }));
+    subs.splice(subs.findIndex(function (fn) { return fn === f; }), 1);
 };

@@ -6,7 +6,7 @@ type Focus =
 
 
 type Narrow<T, N> = T extends { kind: N } ? T : never;
-type NarrowOption<T> = T extends undefined ? never : T
+type NarrowOption<T> = T extends null ? never : T
 type Events = {subscribers: any[], children: any, discriminants: any}
 type Match<T, U> = [T] extends [{kind: string}] ? {[P in T["kind"]]: (v: View<T & {kind: P}>) => U} : never
 type MapFn<T, U> = [keyof T & number] extends [never] ? never : (v: View<T[keyof T & number]>) => U
@@ -43,8 +43,8 @@ export class View<T>{
 
     if<U>(f: (view: View<NarrowOption<T>>) => U){
         const value = this.get()
-        if(value === undefined)
-            return undefined
+        if(value === null)
+            return null
         else
             return f(this.option())
     }
@@ -71,7 +71,7 @@ export class View<T>{
         return _get(this)
     }
 
-    maybeGet(): {success: T} | undefined{
+    maybeGet(): {success: T} | null{
         return _maybeGet(this)
     }
 
@@ -211,16 +211,16 @@ const _maybeGet = <T>(view: View<T>) => {
         else if(f.kind === "index")
             temp = temp[f.value]
         else if(f.kind === "option"){
-            if(temp === undefined)
-                return undefined
+            if(temp === null)
+                return null
         }
         else{
             if(f.name !== temp.kind){
-                return undefined
+                return null
             }
         }
     }
-    return {success: temp} as {success: T} | undefined
+    return {success: temp} as {success: T} | null
 }
 
 const _rmodify = <T>(obj: any, lens: Focus[], i: number, fn: (s: any) => any ): any =>{
@@ -244,7 +244,7 @@ const _rmodify = <T>(obj: any, lens: Focus[], i: number, fn: (s: any) => any ): 
                     return [obj, false]
             }
             else if(f.kind === "option"){
-                if(obj === undefined)
+                if(obj === null)
                     return [obj, false]
             }
             else{
@@ -286,12 +286,14 @@ const _modify = <T>(view: View<T>, fn: (s: T) => T) => {
 
 const notify = (events: Events, old: any, nw: any) =>{
     for(const key of Object.keys(events.children)){
-        const cold = old[key]
-        const cnew = nw[key]
-        if(cnew !== undefined && cnew !== cold){
-            const cevents = events.children[key]
-            cevents.subscribers.forEach((s: any) => s(cnew))
-            notify(cevents, cold, cnew)
+        if(old && nw){
+            const cold = old[key]
+            const cnew = nw[key]
+            if(cnew !== undefined && cnew !== cold){
+                const cevents = events.children[key]
+                cevents.subscribers.forEach((s: any) => s(cnew))
+                notify(cevents, cold, cnew)
+            }
         }
     }
     for(const key of Object.keys(events.discriminants)){
